@@ -22,8 +22,8 @@ import javax.xml.bind.DatatypeConverter;
  *
  * @author Me
  */
-@WebServlet(name = "getKey", urlPatterns = {"/getKey"})
-public class getKey extends HttpServlet {
+@WebServlet(name = "GetKey", urlPatterns = {"/GetKey"})
+public class GetKey extends HttpServlet {//Servlet to provide user the API key
 
     // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">
     /**
@@ -36,7 +36,7 @@ public class getKey extends HttpServlet {
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
+            throws ServletException, IOException {//Generating the key for the user
         String nextView;
         String B64 = "";
         String string = request.getParameter("Input1");
@@ -47,12 +47,13 @@ public class getKey extends HttpServlet {
             String comboString = string + string2;
             MessageDigest md;
             try {
+                //Using SHA-256 to generate the API key
                 md = MessageDigest.getInstance("SHA-256");
                 byte[] digest = md.digest(comboString.getBytes());
                 B64 = DatatypeConverter.printBase64Binary(digest);
-                B64 = B64.replace("=", "a").replace("/", "b").replace("+", "c");
+                B64 = B64.replace("=", "a").replace("/", "b").replace("+", "c").substring(0, 10);
             } catch (NoSuchAlgorithmException ex) {
-                Logger.getLogger(getKey.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(GetKey.class.getName()).log(Level.SEVERE, null, ex);
             }
             request.setAttribute("B64", B64);
             nextView = "result.jsp";

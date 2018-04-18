@@ -9,5 +9,6 @@
     </head>
     <body>
         <p>Your key is : <%= request.getAttribute("B64")%></p><br>
+        <p>Keep it a secret !!<p>
     </body>
 </html>

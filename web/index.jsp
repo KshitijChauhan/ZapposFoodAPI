@@ -10,7 +10,7 @@
     <body>
         <h1>Let us get you a key to use this amazing API</h1><br>
         <h1>Enter your credentials</h1>
-        <form action=getKey method="GET">
+        <form action=GetKey method="GET">
             <label for="letter">Enter your name - </label><br>
             <input type="text" name="Input1"><br>
             <label for="letter">Enter your email ID - </label><br>

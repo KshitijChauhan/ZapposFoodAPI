@@ -5,15 +5,19 @@
  */
 package RestaurantWeb;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.json.simple.JSONArray;
 import java.io.PrintWriter;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 /**
  *
@@ -44,66 +48,112 @@ public class RestaurantWebService extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        //Fetch the restaurants from the database as per the user's request
+
+        response.setContentType("application/json");
+        JSONObject result = new JSONObject();
+        PrintWriter out = response.getWriter();
+
         if (request.getPathInfo() != null && !request.getPathInfo().equals("")) {
             String restData = (request.getPathInfo()).substring(1);
-            if (restData.equals("")) {
-                PrintWriter out = response.getWriter();
-                out.print("API key required for using the API");
-            } else if (!restData.contains("&")) {
+            if (!Utils.isEmpty(restData)) {
                 String[] splitString = restData.split("/");
-                int lengthString = splitString.length;
-                boolean keyValid = deSQL.validateKey(splitString[0]);
-                if (keyValid && (lengthString > 1)) {
-                    JSONArray jsonRestaurants = deSQL.fetchRestaurantsCity(splitString[1]);
-                    JSONObject jsonFinal = new JSONObject();
-                    if (!jsonRestaurants.isEmpty()) {
-                        jsonFinal.put("status code", 200);
-                        jsonFinal.put("restaurants", jsonRestaurants);
-                        PrintWriter out = response.getWriter();
-                        out.print(jsonFinal);
+                boolean keyValid = Utils.validateKey(splitString[0]);
+                if (keyValid) {
+                    if (splitString.length != 1) {
+                        result = deSQL.fetchRestaurants(splitString[1]);
+                        if ((int) result.get("statusCode") == 200) {
+                            response.setStatus(200);
+                            out.print(result);
+                        } else {
+                            response.setStatus((int) result.get("statusCode"));
+                            out.print(Utils.sendError(400, "Restaurant not available"));
+                        }
                     } else {
-                        PrintWriter out = response.getWriter();
-                        out.print("status code: 400 (Error in fetching data)");
-                    }
-                } else if (keyValid) {
-                    JSONArray jsonRestaurants = deSQL.fetchRestaurants();
-                    JSONObject jsonFinal = new JSONObject();
-                    if (!jsonRestaurants.isEmpty()) {
-                        jsonFinal.put("status code", 200);
-                        jsonFinal.put("restaurants", jsonRestaurants);
-                        PrintWriter out = response.getWriter();
-                        out.print(jsonFinal);
-                    } else {
-                        PrintWriter out = response.getWriter();
-                        out.print("status code: 400 (Error in fetching data)");
+                        out.print(Utils.sendError(400, "Please provide either the city of the name of restaurant"));
                     }
                 } else {
-                    PrintWriter out = response.getWriter();
-                    out.print("status code: 400 (INVALID KEY ENTERED)");
+                    out.print(Utils.sendError(400, "Incorrect Key Entered"));
                 }
             } else {
-                String[] splitString = restData.split("/");
-                boolean keyValid = deSQL.validateKey(splitString[0]);
-                if (keyValid) {
-                    JSONArray jsonRestaurants = deSQL.fetchRestaurantsName(splitString[1]);
-                    JSONObject jsonFinal = new JSONObject();
-                    if (!jsonRestaurants.isEmpty()) {
-                        jsonFinal.put("status code", 200);
-                        jsonFinal.put("restaurants", jsonRestaurants);
-                        PrintWriter out = response.getWriter();
-                        out.print(jsonFinal);
-                    } else {
-                        PrintWriter out = response.getWriter();
-                        out.print("status code: 400 (Error in fetching data)");
-                    }
-                } else {
-                    PrintWriter out = response.getWriter();
-                    out.print("status code: 400 (INVALID KEY ENTERED)");
-                }
+                out.print(Utils.sendError(400, "API key required for using the API"));
             }
         } else {
-            PrintWriter out = response.getWriter();
-            out.print("API key required for using the API");
+            out.print(Utils.sendError(400, "API key required for using the API"));
+        }
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        //Used to add restaurants to the database as per the user's request
+        DataAdd dataAdd = new DataAdd();
+        response.setContentType("application/json");
+        JSONObject params = new JSONObject();
+        PrintWriter out = response.getWriter();
+        String data = "";
+        StringBuilder builder = new StringBuilder();
+        BufferedReader reader = request.getReader();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            builder.append(line);
+        }
+        data = builder.toString();
+        JSONParser parser = new JSONParser();
+        try {
+            params = (JSONObject) parser.parse(data);
+        } catch (ParseException ex) {
+            Logger.getLogger(MenuWebService.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        if (params.get("api_key") != null) {
+            if (Utils.checkKey(params.get("api_key").toString())) {
+                boolean isRep = Utils.repRestCheck(params);
+                if (!isRep) {
+                    out.print(dataAdd.addToRest(params));
+                } else {
+                    out.print(Utils.sendError(400, "The restaurant " + params.get("restaurant_name") + " is already present in the database"));
+                }
+            } else {
+                out.print(Utils.sendError(400, "Invalid key entered"));
+            }
+        } else {
+            out.print(Utils.sendError(400, "Invalid key entered"));
+        }
+    }
+
+    @Override
+    protected void doPut(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        //Used to allow users to update data tables
+        DataPut dataPut = new DataPut();
+        response.setContentType("application/json");
+        JSONObject params = new JSONObject();
+        PrintWriter out = response.getWriter();
+        String data = "";
+        StringBuilder builder = new StringBuilder();
+        BufferedReader reader = request.getReader();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            builder.append(line);
+        }
+        data = builder.toString();
+        JSONParser parser = new JSONParser();
+        try {
+            params = (JSONObject) parser.parse(data);
+        } catch (ParseException ex) {
+            Logger.getLogger(MenuWebService.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        if (Utils.checkKey(params.get("api_key").toString())) {
+            if (Utils.existRestCheck(params)) {
+                out.print(dataPut.updateRest(params));
+            } else {
+                out.print(Utils.sendError(400, "Restaurant does not exist in table"));
+            }
+        } else {
+            out.print(Utils.sendError(400, "Invalid key entered"));
         }
     }
 }
